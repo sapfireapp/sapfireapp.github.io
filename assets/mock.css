@@ -1,0 +1,218 @@
+/* Живой макет окна Sapfire. Всё в точках окна 1400×900 (1 css px = 1 pt), масштаб — переменной --k на .mock.
+   Размеры — из Sapfire Sources/Views.swift › Metrics и замеров снимков tools/screens (2×).
+   Всё видимое — вырезки настоящих снимков (assets/mock); текст строк — живой системным шрифтом. */
+.mock {
+  --k: 1;
+  --card: rgb(224 224 235);       /* цвета карточки — по пространству, из data.js */
+  --card-line: rgb(217 218 228);
+  --fold: rgb(212 213 223);
+  --ink: rgb(0 0 0 / .835);
+  --ink-2: rgb(0 0 0 / .46);
+  --dur: .42s;
+  --swap: .01s;                                   /* подмена узкой страницы широкой — мгновенная: наплыв двоит текст */
+  --swap-at: calc(var(--dur) - var(--swap));      /* — к концу движения */
+  --ease: cubic-bezier(.3, .75, .25, 1);
+  position: relative; width: calc(1400px * var(--k)); height: calc(900px * var(--k));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none;
+}
+.mk-win { position: absolute; left: 0; top: 0; width: 1400px; height: 900px; transform: scale(var(--k)); transform-origin: 0 0;
+  border-radius: 26px; overflow: hidden; background: var(--page-bg, #fff); isolation: isolate; }   /* угол окна — Metrics.windowRadius */
+.mk-win img { position: absolute; display: block; pointer-events: none; -webkit-user-drag: none; }
+.mk-win img:not([src]), .mk-win img[src=""] { visibility: hidden; }
+:where(.mk-win button) { all: unset; position: absolute; cursor: default; }   /* сброс без веса: правила строк и кнопок сильнее */
+
+/* Страница и верхняя панель — снимки этой вкладки в двух ширинах. Панель уходит — узкие едут за ней к левому краю,
+   в конце движения подменяются широкими (у настоящей страницы вёрстка перестраивается). Возвращается — сразу узкие, и едут вправо */
+.mk-page, .mk-bar { position: absolute; left: 0; top: 0; width: 1400px; transition: transform var(--dur) var(--ease); }
+.mk-page { height: 900px; }
+.mk-bar { height: 52px; }
+.mk-barside { position: absolute; left: 0; top: 0; width: 220px; height: 52px; background: var(--bar-bg, #fff); }   /* поле окна на высоте панели */
+.mk-page img { top: 0; height: 900px; }
+.mk-bar img { top: 0; height: 52px; }
+.mk-win .narrow { left: 220px; width: 1180px; transition: transform var(--dur) var(--ease), opacity var(--swap) linear; }
+.mk-win .wide { left: 0; width: 1400px; opacity: 0; transition: opacity var(--swap) linear; }
+.mock.no-side .mk-win .narrow { transform: translateX(-220px); opacity: 0; transition: transform var(--dur) var(--ease), opacity var(--swap) linear var(--swap-at); }
+.mock.no-side .mk-win .wide { opacity: 1; transition: opacity var(--swap) linear var(--swap-at); }
+.mock:not(.no-bar) .mk-page { transform: translateY(52px); }
+.mk-win .mk-page .margin { left: 0; width: 220px; }   /* поле окна под карточкой — фон страницы у её левого края, по строкам */
+.mock.no-bar .mk-bar { transform: translateY(-53px); }
+.mk-bar .only-full { pointer-events: none; }
+.mock.no-side .mk-bar .only-full { pointer-events: auto; }
+
+/* Ручка вверху, когда верхней панели нет (снимок этой страницы — на тёмной она светлая) */
+.mk-win .mk-handle { top: 3px; width: 88px; height: 13px; }
+.mk-win .mk-handle.narrow { left: 766px; }
+.mk-win .mk-handle.wide { left: 656px; }
+.mock:not(.no-bar) .mk-handle { visibility: hidden; }
+
+/* Боковая панель: карточка — SVG-контур с вырезом под активную вкладку; вырез залит цветом страницы */
+.mk-side { position: absolute; left: 0; top: 0; width: 220px; height: 900px; transition: transform var(--dur) var(--ease); }
+.mock.no-side .mk-side { transform: translateX(-252px); }   /* с тенью целиком */
+.mk-notch { position: absolute; left: 16px; top: 0; width: 204px; height: 32px; border-radius: 16px 0 0 16px; background: #fff; transition: background-color .2s; }
+.mk-cardclip { position: absolute; left: 0; top: 0; width: 250px; height: 900px; overflow: hidden; }   /* тень — своя и за край панели: запечённую в снимке страницы срезаем при сборке */
+.mk-card { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 0 .5px rgb(0 0 0 / .14)) drop-shadow(0 1.275px 7px rgb(0 0 0 / .16)); }
+/* тень — по замеру снимка у края выреза (Metrics.shadow*): тонкий кант в пиксель + широкая, σ ≈ 3,5 pt, 16 % (сверено с живым Sapfire поперёк выреза) */
+.mk-card .card { fill: var(--card); stroke: var(--card-line); stroke-width: .5; transition: fill .3s; }
+.mk-card .blocks rect { transition: fill .3s; }
+.mk-hdr img { left: 14px; top: 14px; width: 192px; height: 136px; opacity: 0; transition: opacity .26s; clip-path: inset(0 0 24px 0); }   /* до строки «Pinned» — она живая */
+.mk-hdr img.on { opacity: 1; }
+.mk-win .mk-baroff { left: 147.5px; top: 18.5px; width: 18px; height: 15px; opacity: 0; transition: opacity .2s; }
+.mock.no-bar .mk-baroff { opacity: 1; }
+.mk-win .mk-newtab { left: 70px; top: 858px; width: 84px; height: 22px; transition: transform var(--dur) var(--ease); }
+.mock.no-bar .mk-newtab { transform: translateY(-34px); }
+.mk-win .mk-botcap { left: 10px; top: 858px; width: 200px; height: 32px; opacity: 0; transition: opacity var(--dur) var(--ease); }
+.mock.no-bar:not(.no-side) .mk-botcap { opacity: 1; }
+
+/* Кнопки шапки: подсветка при наведении — как NavButton в Sapfire (8 % основного, 26×20, угол 5) */
+.mk-hit { border-radius: 5px; transition: background-color .12s; }
+.mk-hit:hover { background: rgb(0 0 0 / .08); }
+.mk-bar .mk-hit { border-radius: 6px; }
+.mk-sp { top: 44px; width: 28px; height: 26px; border-radius: 13px; transition: background-color .12s; }
+.mk-sp:not(.on):hover { background: rgb(0 0 0 / .06); }
+.mk-sp.target, .mk-sp.target:hover { background: rgb(0 0 0 / .14); }   /* вкладку держат над значком — бросишь, уедет в это пространство */
+.mk-pin { top: 78px; width: 41px; height: 41px; border-radius: 50%; }
+.mk-pin img { left: 0; top: 0; width: 41px; height: 41px; }
+
+/* Строки списка: место — transform от раскладки в mock.js; наведение — 5 % затемнения поверх строки (как sidebarShade(0.05)) */
+.mk-list { position: absolute; left: 0; top: 0; width: 220px; }
+.mk-row { position: absolute; top: 0; height: 32px; will-change: transform; }
+.mk-row::after { content: ""; position: absolute; inset: 0; border-radius: 16px; background: rgb(0 0 0 / .05); opacity: 0; transition: opacity .12s; pointer-events: none; }
+.mk-row:not(.on):not([disabled]):hover::after { opacity: 1; }
+.mk-row .tx { position: absolute; top: 8px; white-space: nowrap; font-size: 13px; line-height: 16px; color: var(--ink); }
+.mk-row .tx.m { font-weight: 500; }
+.mk-row.tab { left: 16px; width: 188px; }
+.mk-row.tab img { left: 16px; top: 6px; width: 20px; height: 20px; }
+.mk-row.tab .fa, .mk-row.tab.on .fi { visibility: hidden; }
+.mk-row.tab.on .fa { visibility: visible; }
+.mk-row.tab .tx { left: 42px; max-width: 138px; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.mk-row.tab.on .tx { color: var(--on-ink, var(--ink)); }
+.mk-row.folder { left: 12px; width: 196px; }
+.mk-row.folder.open::after { inset: 0 4px; }
+.mk-row.folder .ic { left: 10px; top: 6px; width: 21px; height: 20px; transition: opacity .2s; }
+.mk-row.folder .ic.o, .mk-row.folder.open .ic.c { opacity: 0; }
+.mk-row.folder.open .ic.o { opacity: 1; }
+.mk-row.folder .star { left: 34px; top: 6px; width: 18px; height: 20px; }
+.mk-row.folder .tx { left: 36px; }
+.mk-row.folder .cnt { position: absolute; left: 176.5px; top: 9.5px; font-size: 11px; line-height: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; transition: opacity .2s; }
+.mk-row.folder.open .cnt { opacity: 0; }
+/* Линия раздела (Views.swift › SectionLine): поля 6, черта — подпись 66 — черта; со стрелкой правая черта короче на 44 */
+.mk-row.sec { left: 0; width: 220px; height: 20px; }
+.mk-row.sec::after { display: none; }
+.mk-sec { position: absolute; left: 16px; top: 0; width: 188px; height: 20px; }
+.mk-sec i { position: absolute; top: 9.5px; height: 1px; background: rgb(0 0 0 / .17); }
+.mk-sec i.l { left: 6px; width: 47px; }
+.mk-sec i.r { left: 135px; width: 47px; }
+.sec.fold .mk-sec i.r { display: none; }   /* в Sapfire от неё остаётся обрезок 3 pt (SectionLine: черты поровну, у правой −44) — не рисуем */
+.mk-sec .lb { left: 61px; top: 0; width: 66px; height: 20px; border-radius: 10px; background: rgb(0 0 0 / .05); transition: background-color .12s, color .12s;
+  font: 600 11px/20px -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; color: var(--ink-2); }
+.mk-sec .lb:hover { background: rgb(0 0 0 / .1); color: var(--ink); }
+.sec.armed .lb { background: rgb(255 59 48 / .85); color: #fff; }
+/* FoldButton: капсула ≥ 20, поля 5; свёрнуто — число и стрелка вбок */
+.mk-sec .fold { right: 6px; top: 0; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; display: none;
+  align-items: center; justify-content: center; gap: 3px; color: var(--ink-2); transition: background-color .12s, color .12s; }
+.sec.fold .fold { display: flex; }
+.mk-sec .fold:hover { background: rgb(0 0 0 / .1); color: var(--ink); }
+.mk-sec .fold .n { display: none; font: 600 10.5px/1 -apple-system, BlinkMacSystemFont, sans-serif; font-variant-numeric: tabular-nums; }
+.sec.shut .fold .n { display: block; }
+.mk-sec .fold svg { display: block; transition: transform .2s; }
+.mk-sec .fold path { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.sec.shut .fold svg { transform: rotate(90deg); }
+
+/* Сцены: показ механик поверх окна (mock.js › SCENES). Строки списка не нажимаются — окно витрина */
+.mk-row { pointer-events: auto; }
+.mk-row.tab .fi.web { opacity: .55; }   /* спящая вкладка: значок приглушён (Views.swift › TabRow, asleep) */
+.mk-row.target::after { opacity: 1; background: rgb(0 0 0 / .09); }
+.mk-scene { position: absolute; inset: 0; pointer-events: none; }
+.mk-scene .sc { left: 0; top: 0; width: 1400px; height: 900px; opacity: 0; }
+.mk-scene .sc.incogerase { left: 62px; top: 79px; width: 96px; height: 25px; }   /* кусок кадра инкогнито: Erase All под курсором */
+.mk-scene .sc.card { left: 248px; top: 72px; width: 1124px; height: 815px; transform-origin: 50% 40%; }
+.sc-drop { position: absolute; left: 812px; top: 60px; width: 580px; height: 832px; border-radius: 14px; opacity: 0;
+  background: rgb(0 122 255 / .12); box-shadow: inset 0 0 0 2px rgb(0 122 255 / .5); }   /* сюда бросить — откроется сплитом */
+.sc-ghost { position: absolute; left: 0; top: 0; width: 220px; opacity: 0; }
+.sc-ghost .mk-row { position: absolute; opacity: .9; }
+.sc-ghost .mk-row::before { content: ""; position: absolute; inset: 0; border-radius: 16px; background: rgb(255 255 255 / .75); box-shadow: 0 4px 14px rgb(0 0 0 / .14); }
+.sc-ghost .mk-row > * { z-index: 1; }
+.sc-keys { position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); padding: 12px 24px; border-radius: 16px;
+  background: rgb(0 0 0 / .72); color: #fff; font: 600 30px/1 -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: .02em; opacity: 0; }
+.sc-cursor { position: absolute; left: 0; top: 0; opacity: 0; filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / .35)); transform-origin: 2px 1.5px; }
+
+/* Сам: черта вставки при перетаскивании, поле переименования */
+.sc-ins { position: absolute; left: 24px; top: 0; width: 172px; height: 2px; border-radius: 1px; background: rgb(0 122 255); opacity: 0; transition: opacity .1s; }
+.mk-rename { position: absolute; left: 0; top: 0; height: 22px; padding: 0 3px; border: 0; border-radius: 5px; outline: 3px solid rgb(0 122 255 / .45);
+  background: #fff; font: 13px/22px -apple-system, BlinkMacSystemFont, sans-serif; color: rgb(0 0 0 / .85); }
+
+/* Контекстное меню — по снимку настоящего (tools/screens/pages/menu-*.png), в масштабе экрана: ширина по содержимому,
+   угол 14, поле 5, пункт 24 (подсветка 14 − 5 = 9), текст 17 слева и 19 справа, разделитель — полпикселя в блоке 11 */
+.mk-menu { position: fixed; z-index: 1000; box-sizing: border-box; padding: 5px; border-radius: 14px;
+  background: rgb(252 252 254 / .94); -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow: 0 0 0 .5px rgb(0 0 0 / .26), inset 0 .5px 0 rgb(255 255 255 / .9), 0 12px 34px rgb(0 0 0 / .2);
+  font: 13px/24px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; color: rgb(0 0 0 / .85); -webkit-font-smoothing: antialiased; user-select: none; }
+.mk-menu .mi { position: relative; display: flex; align-items: center; height: 24px; padding: 0 14px 0 12px; border-radius: 9px; white-space: nowrap; cursor: default; }
+.mk-menu .mi span { flex: 1; }
+.mk-menu .mi kbd { display: flex; margin-left: 32px; padding: 0; background: none; font: inherit; color: rgb(0 0 0 / .22); }
+.mk-menu .mi kbd b { width: 13px; font-weight: 400; text-align: center; }   /* знаки сочетания — по ячейке, как в меню macOS */
+.mk-menu .mi i { display: block; width: 7px; height: 12px; margin-left: 32px; }
+.mk-menu .mi i::before { content: ""; display: block; width: 6px; height: 6px; margin: 3px 0 0 -2px; border: solid rgb(0 0 0 / .85); border-width: 1.6px 1.6px 0 0; transform: rotate(45deg); }
+.mk-menu .mi:hover { background: rgb(0 122 255); color: #fff; }
+.mk-menu .mi:hover kbd { color: rgb(255 255 255 / .7); }
+.mk-menu .mi:hover > i::before { border-color: #fff; }
+.mk-menu hr { height: .5px; margin: 5px 12px; border: 0; background: rgb(0 0 0 / .09); }
+.mk-menu.sub { position: absolute; left: calc(100% + 1px); top: -5px; display: none; }
+.mk-menu .mi.has:hover > .mk-menu.sub { display: block; }
+
+/* Превью вкладки при наведении (TabSwitcher.swift › HoverPreviewOverlay): 280, снимок 0.62, подпись 12 / 10, угол — cardRadius 20 */
+.mk-hp { position: absolute; left: 216px; top: 0; width: 280px; border-radius: 20px; overflow: hidden; background: rgb(246 246 246);
+  box-shadow: 0 0 0 .5px rgb(0 0 0 / .1), 0 5px 32px rgb(0 0 0 / .2); opacity: 0; transform: translateX(-6px);
+  transition: opacity .12s ease-out, transform .14s ease-out; pointer-events: none; z-index: 5; }
+.mk-hp.on { opacity: 1; transform: none; }
+.mk-hp .im { position: relative; height: 173.6px; background: #fff no-repeat; }
+.mk-hp .im img { left: 122px; top: 68.8px; width: 36px; height: 36px; opacity: .8; }
+.mk-hp .tt { padding: 10px 12px; }
+.mk-hp b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 600 13px/16px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--ink); }
+.mk-hp span { display: block; margin-top: 3px; font: 11px/13px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Попап свёрнутой папки (Folders.swift › FolderPeek): 270 + кончик 9, поиск 32, строки 30 через 2, поле 6 */
+.mk-fp { position: absolute; left: 214px; top: 0; width: 279px; opacity: 0; transform: translateX(-6px); pointer-events: none; z-index: 5;
+  transition: opacity .12s ease-out, transform .14s ease-out; }
+.mk-fp.on { opacity: 1; transform: none; pointer-events: auto; }
+.mk-fp .bub { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 4px 14px rgb(0 0 0 / .18)); }
+.mk-fp .bub path { fill: rgb(246 246 246); stroke: rgb(0 0 0 / .12); stroke-width: .5; }
+.mk-fp .in { position: relative; margin-left: 9px; width: 270px; }
+.mk-fp .sr { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 16px; }
+.mk-fp .sr svg { flex: none; fill: none; stroke: var(--ink-2); stroke-width: 1.4; stroke-linecap: round; }
+.mk-fp input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; padding: 0; font: 13px/16px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--ink); }
+.mk-fp input::placeholder { color: rgb(0 0 0 / .3); }
+.mk-fp hr { margin: 0; border: 0; height: .5px; background: rgb(0 0 0 / .14); }
+.mk-fp .ls { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.mk-fp .it { position: relative; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 15px; cursor: default; }
+.mk-fp .it:hover { background: rgb(0 0 0 / .07); }
+.mk-fp .it img { position: static; width: 16px; height: 16px; flex: none; }
+.mk-fp .it span { font: 13px/16px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-fp .none { padding: 14px 0; text-align: center; font: 12px/15px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--ink-2); }
+.mk-fp .mo { padding: 0 14px 8px; font: 11px/13px -apple-system, BlinkMacSystemFont, sans-serif; color: rgb(0 0 0 / .26); }
+.mk-fp .mo:empty { display: none; }
+
+/* Панель адреса скрыта — капсула у верхней кромки (Views.swift › TopBar): 38, поля 5, над страницей посередине.
+   Кнопки и адрес — куски полосы панели этой страницы (p/<page>-tw), фон — её цвет */
+.mk-tophit { position: absolute; top: 0; left: 710px; width: 200px; height: 22px; display: none; z-index: 6; }
+.mock.no-side .mk-tophit { left: 600px; }
+.mock.no-bar .mk-tophit { display: block; }
+.mk-top { position: absolute; top: 6px; left: 810px; height: 38px; z-index: 6;
+  border-radius: 19px; background: var(--bar-bg, #fff); box-shadow: 0 0 0 .5px rgb(0 0 0 / .1), 0 4px 28px rgb(0 0 0 / .18);
+  transform: translateX(-50%) scale(.4); transform-origin: 50% 0; opacity: 0; pointer-events: none;
+  transition: transform .3s cubic-bezier(.3, 1.35, .5, 1), opacity .16s; }
+.mock.no-side .mk-top { left: 700px; }
+/* куски полосы — прямоугольники: режет по форме капсулы внутренний слой (overflow у WebKit при анимации не режет), тень — снаружи */
+.mk-top .cl { height: 38px; padding: 0 5px; display: flex; align-items: center; gap: 6px; clip-path: inset(0 round 19px); }
+.mock.top-on .mk-top { transform: translateX(-50%); opacity: 1; pointer-events: auto; }
+.mock.top-on .mk-handle { opacity: 0; }
+.mk-top i, .mk-top .sb { display: block; flex: none; position: relative; height: 38px; background: var(--tw) no-repeat; background-size: 1400px 52px; }
+.mk-top .sb { width: 28px; background-position: -82px -7px; display: none; border-radius: 6px; }
+.mock.no-side .mk-top .sb { display: block; }
+.mk-top .sb:hover { box-shadow: inset 0 0 0 20px rgb(0 0 0 / .08); }
+.mk-top .bn { width: 126px; background-position: -114px -7px; }
+.mk-top .ad { width: 300px; background-position: -463px -7px; margin-right: -6px; }
+.mk-top .ae { width: 27px; background-position: -1000px -7px; }   /* поле адреса — 465…1025: по 2 pt полосы с обеих сторон */
+.mk-top .rt { width: 142px; background-position: -1240px -7px; }   /* до 1382: за «⋯» 6 pt + поле 5 = 11, как в TopBar */
+

@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sapfire — a light browser for Mac</title>
+<meta name="description" content="Spaces. Previews. Split view. No ads. Work or personal, VPN or direct — per site. Safari's engine, Chrome's extensions. Free and open source.">
+<link rel="icon" href="assets/gem.png">
+<link rel="canonical" href="https://sapfire.app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sapfire">
+<meta property="og:title" content="Sapfire — a light browser for Mac">
+<meta property="og:description" content="Spaces. Previews. Split view. No ads. Work or personal, VPN or direct — per site. Safari's engine, Chrome's extensions. Free and open source.">
+<meta property="og:url" content="https://sapfire.app/">
+<meta property="og:image" content="https://sapfire.app/assets/og.png"><!-- 1200×630; источник — tools/screens/og-src.html -->
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Sapfire: a sidebar with spaces, pinned sites and folders next to a Wikipedia article">
+<meta name="twitter:image" content="https://sapfire.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#020E36">
+<!-- Для поисковиков: программа и вопросы. Версию и размер вписать при релизе (как и в строке под кнопкой) -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"SoftwareApplication","name":"Sapfire","url":"https://sapfire.app/","applicationCategory":"BrowserApplication",
+  "operatingSystem":"macOS 14 or later","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},
+  "license":"https://www.gnu.org/licenses/gpl-3.0.html",
+  "description":"Spaces. Previews. Split view. No ads. Work or personal, VPN or direct — per site. Safari's engine, Chrome's extensions. Free and open source."},
+ {"@type":"FAQPage","mainEntity":[
+  {"@type":"Question","name":"Coming from Arc?","acceptedAnswer":{"@type":"Answer","text":"Import in one step: spaces, pinned tabs, folders, splits, history and passwords. Right on the first screen, or File → Import from Arc…"}},
+  {"@type":"Question","name":"Why Safari's engine?","acceptedAnswer":{"@type":"Answer","text":"WebKit is the engine Safari uses, and it's already on your Mac. Sapfire doesn't ship a second Chromium — that's why it is small, light on memory and kind to your battery."}},
+  {"@type":"Question","name":"Do my extensions work?","acceptedAnswer":{"@type":"Answer","text":"Most do. Sapfire installs them from the Chrome Web Store and Firefox Add-ons; a few use features Safari's engine doesn't have. Requires macOS 15.4 or later."}},
+  {"@type":"Question","name":"Is it safe to open?","acceptedAnswer":{"@type":"Answer","text":"Yes — signed with a Developer ID and notarized by Apple, so macOS opens it without warnings. And the code is open: read every line."}},
+  {"@type":"Question","name":"Does it sync between Macs?","acceptedAnswer":{"@type":"Answer","text":"Not yet."}},
+  {"@type":"Question","name":"Windows? iPhone?","acceptedAnswer":{"@type":"Answer","text":"Mac only, for now."}}
+ ]}
+]}
+</script>
+<style>
+/* Все размеры — отсюда. Остальное выводится. */
+:root {
+  --lead-fs: clamp(19px, 2vw, 22px);   /* кегль слогана: от него в первом экране считается кегль слова */
+  --display-cap-h: .7em;   /* высота прописных Bebas */
+  --display-cap: -.052em;   /* центр прописных Bebas выше центра строки: на столько поднимать знак рядом */
+  --m: 24px;                 /* один модуль отступа: поля, промежутки, отступ внутри блока */
+  --r-block: calc(min(var(--max), 100vw - 2 * var(--m)) * 26 / 1400);   /* блок раздела = угол окна Sapfire на экране: 26 точек окна 1400 × масштаб (при 1200 — 22) */
+  --r-inner: max(0px, var(--r-block) - var(--m));    /* вложенное в блок: R − отступ; отступ больше радиуса — прямой угол */
+  --h-btn: 44px;             /* кнопка-капсула */
+  --h-nav: 44px;             /* шапка-капсула: радиус 22 = радиус блока при полной ширине 1200 */
+  --nav-pad: 6px;            /* отступ кнопки от края шапки и кружка от края кнопки */
+  --section: calc(var(--m) * 5);                      /* расстояние между разделами */
+  --max: 1200px;
+  --h2-fs: clamp(32px, 4.6vw, 56px);   /* кегль заголовка раздела; им же — цифры в #compare */
+  --under-nav: calc(var(--h-nav) + 2 * var(--m));     /* верх липкого и якорей под шапкой: шапка + её отступ + модуль */
+
+  /* макет окна Sapfire (как в программе: угол окна 26) */
+  --r-window: 26px;
+  --win-pad: 10px;
+  --r-page: calc(var(--r-window) - var(--win-pad));   /* карточка страницы: 26 − 10 = 16 */
+  --h-row: 32px;             /* строка вкладки — капсула */
+  --row-pad: 6px;
+  --h-favicon: calc(var(--h-row) - 2 * var(--row-pad)); /* значок 20 — круг, концентричный капсуле */
+
+  /* переключатель в макете настроек: капсула 22, кружок 18 на отступе 2 */
+  --h-sw: 22px;
+  --sw-pad: 2px;
+
+  --dwell: 8s;               /* сколько показывается одна глава тура */
+
+  /* Вся страница — один тёмный задник (.bg): сапфировый градиент и свет из правого нижнего угла, едет при прокрутке и за курсором.
+     Блоки — полупрозрачные светлые панели поверх него. Бумага осталась только в шапке и в макете страницы внутри окна */
+  --bg: var(--navy);         /* цвет под задником, пока он не нарисован */
+  --ink: #F3F4FF;
+  --on-ink: var(--navy);     /* текст на заливке цвета --ink (кнопка) */
+  --mute: rgba(243, 244, 255, .66);
+  --shade: rgba(255, 255, 255, .08);   /* призрачная кнопка */
+  --glass-rgb: 0 132 255; --glass-a: 0.37;
+  --glass: rgb(var(--glass-rgb) / var(--glass-a));   /* серо-синее стекло: шапка при прокрутке и все блоки — одно значение */
+  --glass-sheen: .12; --glass-hi: 0.22; --glass-line: 0.16;           /* отлив, блик по верхней кромке, контур */
+  --lead-rgb: 243 244 255; --lead-a: .66;   /* слоган первого экрана */
+  --meta-rgb: 255 255 255; --meta-a: .66;   /* строка фактов (Beta · Open source · …) */
+  --block-ink: #FFFFFF; --block-mute-rgb: 255 255 255; --block-mute-a: 0.9;   /* текст в блоках: заголовки; основной текст и его приглушённость */
+  --sh-rgb: 1 53 223; --sh-y: 0px; --sh-blur: 12px; --sh-a: 0.6;     /* тень: цвет, смещение, размытие, плотность */
+  --cur-sheen: 4; --cur-edge: 3; --cur-r: 1000px; --cur-er: 60px;   /* блик за курсором: сила пятна и кромки, радиусы */
+  --gem-glow: #147AFF; --gem-glow-a: 0; --gem-glow-size: 24%; --gem-glow-core: 15%; --gem-glow-blend: plus-lighter;   /* свечение камня: цвет, сила, вылет за холст, плотное ядро, смешивание с задником */
+  /* Стеклянность: отлив (светлее к левому верхнему углу), блик по верхней кромке, тонкий контур, мягкая тень */
+  /* Стекло шапки — своё: под ней проезжают светлые снимки, белый текст должен читаться и на белом.
+     Фон под шапкой сначала притемняется (--nav-dim), потом тонируется: белое под ней становится ~#4A60A2, контраст с белым > 5 */
+  --nav-rgb: 0 85 255; --nav-a: .6; --nav-dim: .7; --nav-blur: 20px; --nav-sat: 2;
+  --nav-sheen: .2; --nav-hi: .18; --nav-line: .14;
+  --glass-fill: linear-gradient(155deg, rgb(255 255 255 / var(--glass-sheen)), rgb(255 255 255 / 0) 45%), var(--glass);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / var(--glass-hi)), inset 0 0 0 1px rgb(255 255 255 / var(--glass-line)), 0 var(--sh-y) var(--sh-blur) rgb(var(--sh-rgb) / var(--sh-a));
+  --ph: rgba(255, 255, 255, .1);       /* заглушка картинки / видео */
+
+  /* сапфир */
+  --navy: #020E36;           /* тёмный угол задника; текст на белой кнопке */
+
+  /* цвета камня */
+  --g1: #4B3BFF;             /* фиолетовый */
+  --g2: #1F6BFF;             /* синий */
+  --g3: #1F9BFF;             /* голубой блик */
+
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  --display: "Bebas Neue", "Impact", var(--sans);   /* имя — как лого Mus3; остальное системным */
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (max-width: 720px) { :root { --m: 16px; } }
+
+/* Имя — Bebas Neue своим файлом (латиница, одно начертание, только прописные) */
+@font-face { font-family: "Bebas Neue"; src: url(assets/bebas-neue.woff2) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+
+/* Задник: фиксированный, под всей страницей. Основа стоит; свечение — отдельный слой больше экрана,
+   двигается только transform'ом (прокрутка: медленнее страницы и вверх; курсор: чуть к нему) — см. скрипт внизу */
+.bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; isolation: isolate;
+      /* Все размеры и положения — в долях ширины условной картинки 3:2 (--u), она масштабируется как cover и центрируется */
+      --u: max(100vw, 149.7vh); --ox: calc((100vw - var(--u)) / 2);
+      /* --shift опускает картинку: на первом экране светлая полоса за окном, не за текстом; параллакс при прокрутке поднимает её */
+      --shift: 0vh; --oy: calc((100vh - var(--u) * .668) / 2 + var(--shift));
+      /* 1. Заливка */
+      --eg-color: #0091FF; --eg-a: 1; --eg-blend: plus-lighter;   /* подсветка у грани: цвет, сила, смешивание */
+      --fill-top: #0A3CF0; --fill-bottom: #001C9C; --fill-mid: 50%;   /* основной фон — вертикальный градиент по экрану; середина — где смешаны поровну */
+      --dark-blend: multiply; --glow-blend: overlay; --soft-blend: overlay;
+      /* 2. Тёмный овал слева сверху, blend multiply: центр, полуоси, доля плотного ядра (дальше — растворение к краю), плотность.
+            Цвет rgb(33 40 60) подобран так, чтобы центр по яркости совпал с прежним normal-вариантом (rgb(1 12 40)); край — насыщенно-синий */
+      --dark: rgb(33 40 60); --dark-x: -.069; --dark-y: .245; --dark-rx: 0.63; --dark-ry: 1.4; --dark-soft: 0; --dark-a: 0.71;
+      /* 3. Свет — прямоугольник: верхняя сторона — резкая грань (её скрипт проводит через камень), от неё вниз
+            заливка уходит в прозрачность. Центр (x, y) — точка вращения; поворот 180° разворачивает градиент.
+            --light-len — длина градиента, --light-mid — где он наполовину прозрачен.
+            Мягкая копия (.soft, при прокрутке) осталась эллипсом: её размеры — --light-rx/--light-ry */
+      --light-x: .775; --light-y: .55; --light-angle: -19deg;
+      --light-color: #5AA9E6; --light-len: 1.07; --light-mid: 50%;
+      --edge-l: 0px; --edge-r: 158px; --edge-from-s: 0; --edge-to-s: 1;   /* мягкость грани слева и справа; переход — от доли ширины экрана до доли (скрипт переводит в --edge-from/--edge-to прямоугольника) */
+      --light-rx: 2.6; --light-ry: 1.04; }
+.bg i, .bg b { position: absolute; display: block; }
+/* ?bg в адресе — смотреть один задник: всё содержимое скрыто, высота страницы та же (прокрутка и движение пятен работают) */
+.bare body > :not(.bg):not(.tune) { visibility: hidden; }   /* панель настроек остаётся видна */
+.bg .base { inset: 0; background: linear-gradient(to bottom, var(--fill-top), color-mix(in oklab, var(--fill-top), var(--fill-bottom)) var(--fill-mid), var(--fill-bottom)); }
+.bg .dark { will-change: transform; mix-blend-mode: var(--dark-blend); width: calc(var(--dark-rx) * 2 * var(--u)); height: calc(var(--dark-ry) * 2 * var(--u));
+            left: calc(var(--ox) + (var(--dark-x) - var(--dark-rx)) * var(--u)); top: calc(var(--oy) + (var(--dark-y) - var(--dark-ry)) * var(--u));
+            background: radial-gradient(ellipse closest-side, rgb(from var(--dark) r g b / var(--dark-a)) calc(var(--dark-soft) * 100%), rgb(from var(--dark) r g b / 0)); }
+/* .glow двигает параллакс (скрипт внизу), .light внутри — повёрнутое пятно. Blend — на .glow: will-change создаёт свой контекст,
+   и blend на вложенном .light смешивался бы с пустым .glow, а не с заливкой. Чёрный край пятна для dodge нейтрален */
+.bg .glow, .bg .glow-soft { inset: 0; will-change: transform, opacity;
+            transform-origin: calc(var(--ox) + var(--light-x) * var(--u)) calc(var(--oy) + var(--light-y) * var(--u)); }   /* вращается вокруг центра пятна */
+.bg .glow { mix-blend-mode: var(--glow-blend); }
+/* Мягкая копия пятна: та же форма, но смешивание soft-light и размытие — без dodge нет ни ступени на кромке, ни розового в ядре.
+   При прокрутке резкое пятно гаснет, мягкое проявляется (скрипт внизу). Размытие статичное — слой растеризуется один раз */
+.bg .glow-soft { opacity: 0; mix-blend-mode: var(--soft-blend); }
+/* Подсветка у грани: круговой градиент, обрезанный линией грани света (маску и положение ставит скрипт каждый кадр):
+   светит только с одной стороны грани. Спад «колоколом» */
+.bg .edge-glow { inset: 0; mix-blend-mode: var(--eg-blend);
+                 --eg-stops: rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 1.000)) 0.0%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.973)) 8.3%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.895)) 16.7%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.776)) 25.0%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.631)) 33.3%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.477)) 41.7%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.330)) 50.0%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.204)) 58.3%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.109)) 66.7%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.046)) 75.0%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.013)) 83.3%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.001)) 91.7%, rgb(from var(--eg-color) r g b / calc(var(--eg-a) * 0.000)) 100.0%; }   /* фон и маску ставит скрипт: радиальный градиент с этими ступенями вокруг точки у камня */   /* Soft Light: светлое поднимает контраст и светлоту синего, не разбавляя его */
+.bg .soft { width: calc(var(--light-rx) * 2.3 * var(--u)); height: calc(var(--light-ry) * 2.3 * var(--u));
+            left: calc(var(--ox) + (var(--light-x) - var(--light-rx) * 1.15) * var(--u)); top: calc(var(--oy) + (var(--light-y) - var(--light-ry) * 1.15) * var(--u));
+            transform: rotate(var(--light-angle)); filter: blur(calc(var(--u) * .03));
+            background: radial-gradient(ellipse closest-side, rgb(220 245 255), rgb(150 220 255 / .9) 35%, rgb(110 190 255 / .5) 65%, rgb(110 190 255 / 0)); }
+/* Свет — полуплоскость с гранью: градиент цвета от грани в прозрачность и маска мягкости грани. Рисуется в размер экрана —
+   скрипт каждый кадр ставит линейный градиент и конический (или линейный) градиент маски прямо в координатах экрана,
+   вместо огромного повёрнутого прямоугольника. Геометрия та же: центр (--light-x, --light-y), поворот --light-angle,
+   длина --light-len, середина --light-mid; грань — сторона прямоугольника высотой --light-len, обращённая наверх */
+.bg .light { inset: 0; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { overflow-x: clip; scroll-behavior: smooth; scroll-padding-top: var(--under-nav); }
+body { font: 17px/1.5 var(--sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+img { display: block; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+.wrap { max-width: calc(var(--max) + 2 * var(--m)); margin: 0 auto; padding: 0 var(--m); }
+/* Текст в блоках — свои цвета (по умолчанию как на странице); --ink/--mute переопределены внутри, всё вложенное берёт их */
+.block, .chapter, .steps li { --ink: var(--block-ink); --mute: rgb(var(--block-mute-rgb) / var(--block-mute-a)); color: var(--ink); }
+.block { background: var(--glass-fill); box-shadow: var(--glass-edge); border-radius: var(--r-block); padding: var(--m); }
+/* Стекло за курсором: отлив (пятно внутри) и блик кромки (светлеет край у курсора). Скрипт внизу ставит каждому блоку
+   --gx/--gy — курсор в координатах блока, --gk — близость курсора (1 рядом, 0 дальше 200 px). Слои под текстом (isolation + z-index −1) */
+.glassy { position: relative; isolation: isolate; }
+.glassy.near::before, .glassy.near::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+                                  transition: opacity .3s; }
+.glassy::before { opacity: calc(var(--gk, 0) * var(--cur-sheen)); }
+.glassy::after { opacity: calc(var(--gk, 0) * var(--cur-edge)); }
+.glassy::before { background: radial-gradient(circle var(--cur-r) at var(--gx, 50%) var(--gy, 50%), rgb(255 255 255 / 0.080) 0.0%, rgb(255 255 255 / 0.078) 8.3%, rgb(255 255 255 / 0.072) 16.7%, rgb(255 255 255 / 0.062) 25.0%, rgb(255 255 255 / 0.050) 33.3%, rgb(255 255 255 / 0.038) 41.7%, rgb(255 255 255 / 0.026) 50.0%, rgb(255 255 255 / 0.016) 58.3%, rgb(255 255 255 / 0.009) 66.7%, rgb(255 255 255 / 0.004) 75.0%, rgb(255 255 255 / 0.001) 83.3%, rgb(255 255 255 / 0.000) 91.7%, rgb(255 255 255 / 0.000) 100.0%); }   /* спад по S-кривой — без видимой границы */
+.glassy::after { padding: 1px;
+                 background: radial-gradient(circle var(--cur-er) at var(--gx, 50%) var(--gy, 50%), rgb(255 255 255 / 0.300) 0.0%, rgb(255 255 255 / 0.292) 8.3%, rgb(255 255 255 / 0.268) 16.7%, rgb(255 255 255 / 0.233) 25.0%, rgb(255 255 255 / 0.189) 33.3%, rgb(255 255 255 / 0.143) 41.7%, rgb(255 255 255 / 0.099) 50.0%, rgb(255 255 255 / 0.061) 58.3%, rgb(255 255 255 / 0.033) 66.7%, rgb(255 255 255 / 0.014) 75.0%, rgb(255 255 255 / 0.004) 83.3%, rgb(255 255 255 / 0.000) 91.7%, rgb(255 255 255 / 0.000) 100.0%);
+                 -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+                 mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--m); }
+@media (max-width: 900px) { .grid3 { grid-template-columns: 1fr; } }
+
+.eyebrow { font: 500 13px/1 var(--mono); color: var(--mute); }
+.ph { display: grid; place-items: center; padding: var(--m); text-align: center; background: var(--ph); border-radius: var(--r-inner);
+      font: 500 13px/1.4 var(--mono); color: var(--mute); }
+.draft { outline: 1px dashed rgba(255,255,255,.3); outline-offset: -1px; }
+
+h1, h2, h3 { font-weight: 600; letter-spacing: -.02em; }   /* 400–600: иерархию держит размер, не вес */
+h2 { font-size: var(--h2-fs); line-height: 1.05; }
+h3 { font-size: 20px; line-height: 1.25; font-weight: 500; letter-spacing: -.01em; }
+/* Имя программы — как лого: Bebas, прописные, один размер на весь сайт задаётся местом */
+.name { font: 400 1em/.85 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+.lead { font-size: var(--lead-fs); line-height: 1.45; color: var(--mute); }
+.hero .lead { color: rgb(var(--lead-rgb) / var(--lead-a)); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; height: var(--h-btn); padding: 0 calc(var(--h-btn) / 2);
+       border-radius: calc(var(--h-btn) / 2); font: 600 15px/1 var(--sans); white-space: nowrap; transition: transform .15s; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--ink); color: var(--on-ink); }
+/* Кружок со значком в капсуле: отступ до края — как у кнопки в шапке (6), круг = 44 − 12 = 32, концентричен капсуле */
+.btn .dot { flex: none; width: calc(var(--h-btn) - 2 * var(--nav-pad)); height: calc(var(--h-btn) - 2 * var(--nav-pad)); border-radius: 50%;
+            margin-left: calc(var(--nav-pad) - var(--h-btn) / 2); background: var(--on-ink); color: var(--ink); display: grid; place-items: center; }
+.btn .dot svg { width: 14px; height: 14px; }
+.btn-ghost { background: var(--shade); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--m); }
+.row.tight { gap: calc(var(--m) / 2); }
+kbd { display: inline-block; min-width: 24px; padding: 2px 8px; border-radius: 12px; background: var(--ph); font: 500 13px/20px var(--sans); text-align: center; }
+
+section { margin-top: var(--section); }
+.head { display: grid; gap: var(--m); margin-bottom: var(--m); }   /* заголовок раздела — в одну строку, пока влезает */
+.head .lead { max-width: 760px; }
+.quiet { font-size: 15px; color: var(--mute); }
+
+/* Появление при прокрутке: блок всплывает, соседи — с шагом 70 мс (--i) */
+[data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; transition-delay: calc(var(--i, 0) * 70ms); }
+[data-reveal].in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { [data-reveal] { opacity: 1; transform: none; transition: none; } }
+
+/* 0. Шапка — без подложки, белым по заднику; отступы капсулы сохранены, чтобы лого и кнопка стояли на прежних местах */
+.nav { --h-btn: calc(var(--h-nav) - 2 * var(--nav-pad));   /* кнопка в шапке 32, кружок в ней 20 */
+       position: sticky; top: var(--m); z-index: 10; margin-top: var(--m); }
+.nav .bar { --ink: #fff; --on-ink: var(--navy); color: #fff;
+            display: flex; align-items: center; gap: var(--m); height: var(--h-nav); padding: var(--nav-pad);
+            border-radius: calc(var(--h-nav) / 2);   /* капсула; кнопка внутри — капсула на 6 меньше, концентрична; иконка слева — в центре торца */
+            transition: background-color .3s, box-shadow .3s, -webkit-backdrop-filter .3s, backdrop-filter .3s; }
+/* Наверху страницы подложки нет; как только страница поехала — тёмное стекло с чётким краем (класс .scrolled на <html>) */
+.scrolled .nav .bar { background: linear-gradient(155deg, rgb(255 255 255 / var(--nav-sheen)), rgb(255 255 255 / 0) 45%), rgb(var(--nav-rgb) / var(--nav-a));
+                      -webkit-backdrop-filter: blur(var(--nav-blur)) saturate(var(--nav-sat)) brightness(var(--nav-dim));
+                      backdrop-filter: blur(var(--nav-blur)) saturate(var(--nav-sat)) brightness(var(--nav-dim));
+                      box-shadow: inset 0 1px 0 rgb(255 255 255 / var(--nav-hi)), inset 0 0 0 1px rgb(255 255 255 / var(--nav-line)), 0 var(--sh-y) var(--sh-blur) rgb(var(--sh-rgb) / var(--sh-a)); }
+.logo { display: flex; align-items: center; gap: 8px; font: 400 24px/1 var(--display); letter-spacing: .02em; }   /* тот же знак, что в первом экране: Bebas */
+.nav .logo img { width: var(--display-cap-h); height: var(--display-cap-h);   /* иконка приложения ростом с прописные SAPFIRE */
+                 margin-left: calc((var(--h-nav) - var(--display-cap-h)) / 2 - var(--nav-pad)); }   /* отступ от края капсулы = отступ сверху и снизу: центр иконки в центре торца (квадрат в капсулу строго концентрично не встаёт — это ближайшее) */
+.nav .logo span { position: relative; top: calc(-1 * var(--display-cap)); }   /* середина заглавных Bebas — на середине иконки */
+.nav .logo { flex-shrink: 0; white-space: nowrap; }   /* «Sapfire browser» в одну строку: на телефоне рядом широкая кнопка */
+.nav .logo small { font: 400 15px/1 var(--sans); letter-spacing: 0; color: rgb(var(--meta-rgb) / var(--meta-a)); }   /* «browser» — на общей базовой линии с SAPFIRE, кеглем ссылок шапки, приглушённо как строка фактов */
+.nav .links { display: flex; gap: var(--m); margin-left: auto; font-size: 15px; font-weight: 600; color: #fff; }
+.nav .links a { opacity: .9; } .nav .links a:hover { opacity: 1; }
+@media (max-width: 720px) { .nav .links { display: none; } .nav .btn { margin-left: auto; } .nav .bar { gap: 0; } }   /* на телефоне промежуток — только свободное место: сжимается первым, отступы капсулы целы */
+@media (max-width: 360px) { .nav .logo small { display: none; } }   /* совсем узко — «browser» уходит, остаётся знак */
+
+/* 1. Первый экран — на общем заднике, своего неба нет */
+.hero { text-align: center; display: grid; justify-items: center; gap: var(--m); margin-top: var(--m); }
+/* Лого-строка: камень и имя в ряд. Кристалл занимает ~83 % холста (gem.js: камень на 83 % кадра), остальное — прозрачное поле;
+   холст 1.1 кегля даёт кристалл по высоте прописных Bebas, а поле (8.5 % холста) вычитается из промежутка — на глаз ровно модуль */
+.brand { --gem-pad: calc(1.1em * .085); position: relative; font-size: clamp(72px, 12vw, 150px); }
+.brand h1 { font-size: 1em; }
+/* Слово — по центру страницы, камень висит слева от него на один модуль (поле холста вычтено) */
+.brand .gem { position: absolute; top: 50%; right: calc(100% + var(--m) - var(--gem-pad)); width: 1.1em; margin-top: calc(-.55em + var(--display-cap)); }   /* не transform: он создал бы свой контекст, и свечение не смешалось бы с задником */
+@media (max-width: 720px) { .brand { display: flex; align-items: center; gap: calc(var(--m) - var(--gem-pad)); }   /* на телефоне слева места нет — группа по центру */
+                            .brand .gem { position: relative; top: var(--display-cap); right: auto; margin-top: 0; } }   /* relative, не static: холст внутри позиционируется от .gem */
+/* Камень как в браузере (assets/gem.js): крутится от движения курсора, тянется мышью; без WebGL — картинка */
+.gem { position: relative; aspect-ratio: 1; }
+/* Свечение камня — радиальный градиент за холстом; без своего контекста наложения, поэтому смешивается с задником */
+.gem::before { content: ""; position: absolute; inset: calc(-1 * var(--gem-glow-size)); z-index: -1; pointer-events: none;
+               /* спад «колоколом» ((1+cos)/2)^1.6, 13 ступеней: у ядра ровно, к краю растворяется без видимой границы */
+               background: radial-gradient(closest-side, rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 1.000)) var(--gem-glow-core), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.973)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.083), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.895)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.167), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.776)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.250), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.631)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.333), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.477)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.417), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.330)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.500), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.204)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.583), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.109)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.667), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.046)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.750), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.013)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.833), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.001)) calc(var(--gem-glow-core) + (100% - var(--gem-glow-core)) * 0.917), rgb(from var(--gem-glow) r g b / calc(var(--gem-glow-a) * 0.000)) 100%);
+               mix-blend-mode: var(--gem-glow-blend); }
+.gem > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gem canvas { cursor: grab; touch-action: none; }
+.gem canvas.drag { cursor: grabbing; }
+.gem.live img, .gem:not(.live) canvas { display: none; }
+/* Первый экран: камень, слово и слоган — одной группой по центру страницы, строка фактов под ними тоже по центру.
+   От кристалла до S и от E до начала строк слогана — по модулю.
+   Высота слова = высота слогана: от верха прописных первой строки до базовой линии третьей.
+   Слоган (SF, кегль f, интерлиньяж 1.45): верх прописных 0.400f от верха блока, базовая третьей строки 4.005f → 3.605f.
+   Bebas: прописные 0.7 кегля → кегль слова F = 3.605f / 0.7; при строке .85 верх прописных 0.025F от верха h1.
+   Уже 980 — столбиком по центру: камень и слово в ряд, под ними слоган и факты */
+.intro { width: 100%; display: grid; row-gap: var(--m); }
+@media (min-width: 981px) {
+  .intro { --word-mt: calc(var(--lead-fs) * .400 - var(--lead-fs) * 3.605 / .7 * .025);   /* верх прописных слова = верх прописных слогана */
+           grid-template-columns: repeat(3, auto); grid-template-areas: "gem word lead"; justify-content: center; align-items: start; column-gap: var(--m); text-align: left; }
+  .intro .brand { display: contents; font-size: calc(var(--lead-fs) * 3.605 / .7); }
+  .intro .name { grid-area: word; font-size: calc(var(--lead-fs) * 3.605 / .7); margin-top: var(--word-mt); }
+  /* камень перед словом, центр — на середине прописных; прозрачное поле холста вычтено */
+  /* камень на 20 % больше прежнего (1.1em → 1.32em) и на 40 % ближе к слову: от кристалла до S 0.6 модуля */
+  .intro .gem { --gem-w: 1.32em; --gem-pad: calc(var(--gem-w) * .085); grid-area: gem; position: relative; top: 0; right: auto; width: var(--gem-w);
+                margin: calc(var(--word-mt) + .375em - var(--gem-w) / 2) calc(-1 * var(--gem-pad) - var(--m) * .4) calc(-1 * var(--gem-w)) calc(-1 * var(--gem-pad)); }   /* низ: камень не раздвигает ряд — высоту ряда задают слово и слоган */   /* поле вычтено с обеих сторон: по центру стоит сам кристалл */
+  .intro .lead { grid-area: lead; }
+}
+@media (max-width: 980px) {
+  .intro { justify-items: center; text-align: center; }
+  .intro .brand { display: flex; align-items: center; gap: calc(var(--m) - var(--gem-pad)); font-size: clamp(72px, 12vw, 150px); }
+  .intro .brand .gem { position: relative; top: var(--display-cap); right: auto; margin-top: 0; }
+}
+@media (max-width: 720px) { .lead br { display: none; } }   /* на телефоне строки ломаются сами */
+.hero .row { justify-content: center; }
+/* Строка фактов под кнопкой; версия и размер появляются, когда заданы (data-version) */
+/* Соцсети в подвале: значки 22, шаг — модуль, цвет — как у ссылок подвала */
+.social { display: flex; gap: var(--m); }
+.social a { display: block; color: var(--mute); transition: color .2s; }
+.social a:hover { color: var(--ink); }
+.social svg { display: block; width: 22px; height: 22px; fill: currentColor; }
+.meta { font-size: 14px; color: rgb(var(--meta-rgb) / var(--meta-a)); }
+.meta span + span::before { content: " · "; }
+[hidden] { display: none !important; }
+
+/* Шаги установки — появляются после клика по настоящей ссылке на DMG */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--m); list-style: none; width: 100%; text-align: left; }
+.steps li { display: grid; gap: 8px; align-content: start; background: var(--glass-fill); box-shadow: var(--glass-edge); border-radius: var(--r-block); padding: var(--m); font-size: 15px; color: var(--mute); }
+.steps b { width: 28px; height: 28px; border-radius: 50%; background: var(--ph); display: grid; place-items: center; color: var(--ink); font-size: 13px; }
+.steps li strong { color: var(--ink); font-weight: 600; }
+@media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
+.quiet a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Первый экран: окно Sapfire. На широком экране — живой макет (assets/mock.*: панели прячутся, как в программе),
+   на телефоне и без JS — настоящий снимок (assets/screens, 2×; углы окна прозрачные) */
+.shot-frame { position: relative; width: 100%; }   /* без тени */
+.shot { display: block; width: 100%; height: auto; }
+.shot-frame .mock { display: none; }
+.shot-frame.live .mock { display: block; }
+.shot-frame.live .shot { display: none; }
+@media (prefers-reduced-motion: reduce) { .shot-frame .mock { --dur: .01s; } }
+/* Механики над окном: ряд подписей-кнопок и строка о текущей сцене; сцены идут по кругу, пока окно на экране */
+/* Фишки — у самого окна: 2/3 модуля до его верха; от слова до фишек — полтора модуля (промежуток героя m + m/2). Подписи сцены нет — сцену видно в окне */
+.scenes { margin: calc(var(--m) / 2) 0 calc(var(--m) * 2 / 3 - var(--m)); display: flex; flex-direction: column; align-items: center; gap: calc(var(--m) / 3); }
+.scene-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.chip { position: relative; overflow: hidden; isolation: isolate;   /* стекло — как у блоков; тень — вдвое меньше и на 30 % прозрачнее */
+  height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: var(--glass-fill); color: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / var(--glass-hi)), inset 0 0 0 1px rgb(255 255 255 / var(--glass-line)),
+              0 calc(var(--sh-y) / 2) calc(var(--sh-blur) / 2) rgb(var(--sh-rgb) / calc(var(--sh-a) * .7));
+  font: 600 15px/36px var(--sans, inherit); cursor: pointer; transition: background-color .2s, color .2s; }
+.chip:hover { background: linear-gradient(rgb(255 255 255 / .08), rgb(255 255 255 / .08)), var(--glass-fill); }
+.chip.on { background: #fff; color: rgb(10 22 70); }
+/* Мерцание: фишки по очереди слева направо на миг светлеют, раз в --twinkle-every; на выбранной не нужно */
+.chip::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: rgb(255 255 255 / var(--twinkle-a, .22)); opacity: 0;
+  animation: chip-twinkle var(--twinkle-every, 5s) ease-in-out infinite; animation-delay: calc(var(--i, 0) * .18s + 1s); }
+.chip:nth-child(2) { --i: 1; } .chip:nth-child(3) { --i: 2; } .chip:nth-child(4) { --i: 3; } .chip:nth-child(5) { --i: 4; } .chip:nth-child(6) { --i: 5; } .chip:nth-child(7) { --i: 6; }
+.chip.on::after { content: none; }
+@keyframes chip-twinkle { 0%, 100% { opacity: 0; } 6% { opacity: 1; } 14% { opacity: 0; } }
+/* мерцание оставлено и при «Уменьшении движения»: меняется только яркость, ничего не двигается */
+/* Знак со слоганом — по центру между шапкой и фишками: от шапки до верха прописных и от базовой линии до фишек — по 2 модуля.
+   Верх прописных — 0.4 кегля слогана ниже верха ряда; под базовой линией у слова ещё 0.125F (F = кегль слова) */
+@media (min-width: 981px) {
+  .hero { margin-top: calc(var(--m) * 2 - var(--lead-fs) * .4); }
+  .scenes { margin-top: calc(var(--m) - var(--lead-fs) * 3.605 / .7 * .125); }
+}
+@media (max-width: 720px) { .scenes { display: none; } }
+/* 2. Профили: текст слева, снимок настроек справа. 3. Остальное: два снимка, под ними плитки.
+   Снимок внутри блока — скругление R блока − поле (--r-inner) */
+/* Снимки — вровень с краем блока: внутри поля радиус R − поле < 0, углы вышли бы прямыми; у края они берут радиус блока */
+.duo { display: grid; grid-template-columns: 5fr 7fr; padding: 0; overflow: hidden; }
+.duo .text { display: grid; gap: var(--m); align-content: center; padding: var(--m); }
+.duo .pic { height: 100%; object-fit: cover; object-position: left top; }
+.pic { display: block; width: 100%; height: auto; }
+.shots2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--m); }
+.shots2 .tile { padding: 0; overflow: hidden; gap: 0; }
+.shots2 figcaption { display: grid; gap: calc(var(--m) / 2); padding: var(--m); }
+@media (max-width: 900px) { .duo, .shots2 { grid-template-columns: 1fr; } .duo .pic { height: auto; } }
+.more { margin-top: var(--m); }
+.tile { display: grid; gap: calc(var(--m) / 2); align-content: start; }
+.tile p { color: var(--mute); font-size: 16px; }
+/* 5. Coming from Arc */
+
+/* 6. Приватность: факты слева, макет настроек справа — положения переключателей настоящие */
+/* Сравнение: таблица в блоке; столбец Sapfire — светлее (капсула по высоте таблицы), без линий между строками */
+/* Четыре цифры над таблицей сравнения: плитки как в #faq, цифра — кеглем заголовка раздела */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--m); margin-bottom: var(--m); }
+.stats .tile { grid-row: span 3; grid-template-rows: subgrid; }   /* цифра, подпись, текст — общие строки на весь ряд: подпись в две строки не сдвигает текст соседей */
+@media (max-width: 900px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+.stats b { font-size: var(--h2-fs); line-height: 1; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.cmp { padding: calc(var(--m) / 2); overflow-x: auto; }   /* поле со всех сторон одно — столбец Sapfire концентричен блоку */
+.cmp table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; }
+.cmp th, .cmp td { padding: 10px calc(var(--m) / 2); text-align: center; white-space: nowrap; }
+.cmp thead th { font-weight: 600; font-size: 16px; }
+.cmp tbody th { text-align: left; font-weight: 400; color: var(--mute); }
+.cmp td { color: var(--ink); }
+.cmp .me { background: rgb(255 255 255 / .12); font-weight: 600; }
+.cmp thead .me { border-radius: var(--r-inner-cmp) var(--r-inner-cmp) 0 0; }
+.cmp tbody tr:last-child .me { border-radius: 0 0 var(--r-inner-cmp) var(--r-inner-cmp); }
+.cmp { --r-inner-cmp: max(0px, var(--r-block) - var(--m) / 2); }   /* столбец внутри блока: R − поле */
+.cmp .y { display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: #fff; vertical-align: -3px; }
+.cmp .y::after { content: ""; display: block; width: 5px; height: 9px; margin: 3px auto 0; border: solid #0A3CF0; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.cmp .n { font-style: normal; color: var(--mute); opacity: .6; }
+@media (max-width: 720px) { .cmp tbody th { white-space: normal; min-width: 7.5em; } }   /* телефон: подписи строк в две строки, таблица листается вбок внутри блока */
+.cmp small { display: block; font-size: 12px; color: var(--mute); margin-top: 2px; font-weight: 400; }
+.privacy { display: grid; grid-template-columns: 1fr 1fr; gap: var(--m); }
+.facts { display: grid; gap: var(--m); align-content: start; }
+.facts div { display: grid; gap: 4px; }
+.facts p { color: var(--mute); }
+.settings { display: grid; gap: calc(var(--m) / 2); align-content: start; }
+.set { display: flex; align-items: center; justify-content: space-between; gap: var(--m); height: var(--h-btn); padding: 0 calc(var(--h-btn) / 2);
+       border-radius: calc(var(--h-btn) / 2); background: var(--ph); font-size: 15px; }
+.set small { font-size: 13px; color: var(--mute); }
+.sw { flex: none; position: relative; width: calc(2 * var(--h-sw) - 2 * var(--sw-pad)); height: var(--h-sw); border-radius: calc(var(--h-sw) / 2); background: #fff; }   /* на синем стекле синяя дорожка пропадала: дорожка белая, ручка синяя */
+.sw::after { content: ""; position: absolute; top: var(--sw-pad); right: var(--sw-pad); width: calc(var(--h-sw) - 2 * var(--sw-pad)); height: calc(var(--h-sw) - 2 * var(--sw-pad));
+             border-radius: 50%; background: var(--g2); }
+@media (max-width: 720px) { .privacy { grid-template-columns: 1fr; } }
+
+/* 7. Открытый код */
+.oss { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--m); }
+.oss p { color: var(--mute); }
+.oss .row { justify-content: end; }
+@media (max-width: 720px) { .oss { grid-template-columns: 1fr; } .oss .row { justify-content: start; } }
+
+/* 8. Вопросы */
+
+/* 9. Последний экран */
+.final { text-align: center; display: grid; justify-items: center; gap: var(--m); padding: calc(var(--m) * 3) var(--m); }
+/* Знак в последнем блоке — как в первом экране: тот же кегль слова, камень 1.32em перед ним, от кристалла до S 0.6 модуля, центр — на середине прописных */
+.final .lockup { display: flex; align-items: center; font-size: calc(var(--lead-fs) * 3.605 / .7); }
+.final .lockup .name { font-size: 1em; }
+.final .lockup .gem { --gem-w: 1.32em; --gem-pad: calc(var(--gem-w) * .085); flex: none; width: var(--gem-w); top: var(--display-cap);
+                      margin: calc(var(--gem-w) / -2) calc(var(--m) * .6 - var(--gem-pad)) calc(var(--gem-w) / -2) calc(var(--gem-w) * -.263); }
+/* слева вычтено не поле холста (8.5 %), а всё пустое до кристалла: в покое он виден от 26.3 % до 73 % ширины холста —
+   так по центру кнопки стоит видимый знак, от левого края кристалла до E */
+@media (max-width: 980px) { .final .lockup { font-size: clamp(56px, 12vw, 150px); } }
+
+/* Подвал — оглавление проекта */
+footer { margin: var(--section) 0 var(--m); }
+footer .block { display: grid; gap: var(--m); }
+.cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--m); }
+.cols div { display: grid; gap: 8px; align-content: start; font-size: 15px; color: var(--mute); }
+.cols .eyebrow { margin-bottom: 4px; }
+.cols a:hover { color: var(--ink); }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+</style>
+<link rel="stylesheet" href="assets/mock.css?v=29">
+</head>
+<body>
+<script>if (new URLSearchParams(location.search).has('bg')) document.documentElement.classList.add('bare');</script>
+<div class="bg" aria-hidden="true"><i class="base"></i><i class="dark"></i><i class="glow"><b class="light"></b></i><i class="glow-soft"><b class="soft"></b></i><i class="edge-glow"></i></div>
+
+<!-- 0. Шапка -->
+<div class="wrap nav">
+  <div class="bar">
+    <a class="logo" href="#top"><img src="assets/appicon.png" alt=""><span>Sapfire <small>browser</small></span></a>
+    <nav class="links">
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#oss">GitHub</a>
+    </nav>
+    <!-- ссылка на загрузку — когда будет GitHub Releases -->
+    <a class="btn btn-primary" href="#download" data-download><i class="dot"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2.5v9M3.5 8 7 11.5 10.5 8"/></svg></i><span data-label>Download</span></a>
+  </div>
+</div>
+
+<main class="wrap" id="top" data-repo="sapfireapp/sapfire">
+
+  <!-- 1. Первый экран -->
+  <header class="hero" id="download">
+    <!-- Камень, слово и слоган в ряд; под ними строка фактов -->
+    <div class="intro">
+    <div class="brand">
+      <div class="gem"><img src="assets/gem.png" alt=""><canvas data-gem aria-hidden="true"></canvas></div>
+      <h1 class="name">Sapfire</h1>
+    </div>
+    <p class="lead">Spaces. Previews. Split view. No ads. <br>Work or personal. VPN or direct. Per site. <br>Safari's engine. Chrome's extensions. Free.</p>
+    </div>
+    <!-- После клика по DMG: что делать дальше. Сборки заверены у Apple (Sapfire/tools/release.command) — открываются без предупреждений -->
+    <ol class="steps" data-steps hidden>
+      <li><b>1</b><strong>Open Sapfire.dmg</strong>It's in your Downloads.</li>
+      <li><b>2</b><strong>Drag Sapfire to Applications</strong>Then open it like any app — it's notarized by Apple, no warnings.</li>
+      <li><b>3</b><strong>Bring your tabs</strong>The first screen imports from Arc: spaces, pins, folders.</li>
+    </ol>
+    <p class="quiet" data-steps hidden>Didn't start? <a data-download href="#download">Download again</a></p>
+
+    <!-- Окно Sapfire: живой макет (кнопки панелей в окне, ⌘S — боковая, ⇧⌘L — верхняя, капсула — обе); на телефоне — снимок -->
+    <div class="scenes">
+      <div class="scene-chips" aria-label="Show a feature">
+        <button class="chip" type="button" data-scene="spaces" data-cap="Work, home, side project. Each space keeps its own tabs.">Spaces</button>
+        <button class="chip" type="button" data-scene="folders" data-cap="Folders for what you keep. Fold them away.">Folders</button>
+        <button class="chip" type="button" data-scene="across" data-cap="Drop a tab on another space. It moves there.">Across spaces</button>
+        <button class="chip" type="button" data-scene="split" data-cap="Drop a tab on the page. Two pages, side by side.">Split view</button>
+        <button class="chip" type="button" data-scene="peek" data-cap="Links from pinned sites open in a peek. Close it — you're back.">Peek</button>
+        <button class="chip" type="button" data-scene="incognito" data-cap="Incognito in the same window, through your VPN.">Incognito</button>
+        <button class="chip" type="button" data-scene="focus" data-cap="⌘S and ⇧⌘L. Nothing but the page.">Focus</button>
+      </div>
+    </div>
+    <div class="shot-frame" id="shot-frame">
+      <img class="shot" src="assets/screens/sapfire-aurora.png?v=2" width="1400" height="900" alt="Sapfire: a sidebar with spaces, pinned sites and folders next to a Wikipedia article about the aurora">
+      <div class="mock" data-mock data-media="(min-width: 721px)" role="group" aria-label="Sapfire window showing spaces, folders, moving a tab across spaces, split view, Peek, incognito and focus"></div>
+    </div>
+  </header>
+
+  <!-- 2. Профили и VPN по сайтам — вторая строка слогана. Снимок — настоящие Settings → Profiles (tools/screens: PROFILES=1) -->
+  <section id="profiles">
+    <div class="head"><h2>Work or personal. VPN or direct. Per site</h2></div>
+    <div class="block duo" data-reveal>
+      <div class="text">
+        <p class="lead">A profile is a person or a role, with its own sign-ins. Give each space one. Send a profile through your VPN — the rest go direct.</p>
+        <p class="quiet">Any site can always open as the profile it needs: right-click a tab → Always Open … As.</p>
+      </div>
+      <img class="pic" src="assets/screens/profiles.avif" width="550" height="376" decoding="async"
+           alt="Sapfire Settings, Profiles: Personal and Work go directly, Private goes through the VPN">
+    </div>
+  </section>
+
+  <!-- 3. Остальное — только то, чего нет в первом экране: два снимка и короткие плитки -->
+  <section id="features">
+    <div class="head"><h2>And the rest, a keystroke away</h2></div>
+    <div class="shots2">
+      <figure class="block tile" data-reveal style="--i: 0">
+        <img class="pic" src="assets/screens/cmd.avif" width="840" height="420" decoding="async" alt="Command bar: typing “!yt cats” offers a YouTube search">
+        <figcaption><h3>Command bar</h3><p><kbd>⌘T</kbd> for tabs, history and actions. “!yt cats” searches YouTube right away.</p></figcaption>
+      </figure>
+      <figure class="block tile" data-reveal style="--i: 1">
+        <img class="pic" src="assets/screens/reader.avif" width="840" height="420" decoding="async" alt="Reader: the Aurora article without the page around it">
+        <figcaption><h3>Reader and Translate</h3><p><kbd>⌥⌘R</kbd> — just the article. <kbd>⌥⌘T</kbd> — translated on your Mac, nothing sent anywhere.</p></figcaption>
+      </figure>
+    </div>
+    <div class="grid3 more">
+      <div class="block tile" data-reveal style="--i: 0"><h3>Split, up to four</h3><p>Two, three or four pages side by side — and they stay together.</p></div>
+      <div class="block tile" data-reveal style="--i: 1"><h3>Archive, not lost</h3><p>Temporary tabs tidy themselves away. <kbd>⇧⌘A</kbd> brings them back.</p></div>
+      <div class="block tile" data-reveal style="--i: 2"><h3>Little Window</h3><p>Links from other apps open small. Keep it as a tab, or let it go.</p></div>
+      <div class="block tile" data-reveal style="--i: 0"><h3>Mini player</h3><p>Video keeps playing in the sidebar. One click to Picture in Picture.</p></div>
+      <div class="block tile" data-reveal style="--i: 1"><h3>Extensions</h3><p>From the Chrome Web Store and Firefox Add-ons.</p></div>
+      <div class="block tile" data-reveal style="--i: 2"><h3>Modules</h3><p>Summarize <kbd>⌥⌘U</kbd>, capture images <kbd>⇧⌘2</kbd>, tidy titles. Only what you turn on.</p></div>
+    </div>
+  </section>
+
+  <!-- Сравнение — из Sapfire-dev/Research/features.md и security.md (ноябрь 2026), только подтверждённые источниками пункты.
+       Четыре цифры — замер 9.11.2026 на выпуске 1.0, только те, где Sapfire первый (Sapfire-promo/site-compare-numbers.md › «Замер 1.0»).
+       Размеры — по du, как во всей таблице замеров; «faster than Safari», не «fastest on Safari's engine»: DuckDuckGo (тоже WebKit) не мерили -->
+  <section id="compare">
+    <div class="head"><h2>How it compares</h2></div>
+    <div class="stats">
+      <div class="block tile" data-reveal style="--i: 0"><b>18 MB</b><h3>On disk</h3><p>Uses the WebKit already in macOS. Helium takes 343&nbsp;MB, Brave 878&nbsp;MB.</p></div>
+      <div class="block tile" data-reveal style="--i: 1"><b>77 MB</b><h3>Memory, empty tab</h3><p>An empty tab doesn't start a web process. Safari: 199&nbsp;MB.</p></div>
+      <div class="block tile" data-reveal style="--i: 2"><b>0</b><h3>Connections at launch</h3><p>Nothing goes out in the first 90 seconds. Safari reaches 2 servers.</p></div>
+      <div class="block tile" data-reveal style="--i: 3"><b>11%</b><h3>Faster than Safari</h3><p>Same engine, less on top: Safari layers its own features over every page. Speedometer 3: 45.3 against 40.6.</p></div>
+    </div>
+    <div class="block cmp" data-reveal>
+      <table>
+        <thead><tr><th></th><th class=me>Sapfire</th><th>Arc</th><th>Dia</th><th>Zen</th><th>Orion</th><th>Safari</th></tr></thead>
+        <tbody>
+          <tr><th>Engine</th><td class=me>WebKit</td><td>Chromium</td><td>Chromium</td><td>Firefox</td><td>WebKit</td><td>WebKit</td></tr>
+          <tr><th>Spaces with vertical tabs</th><td class=me><i class="y" aria-label="Yes"></i></td><td><i class="y" aria-label="Yes"></i></td><td><i class="n" aria-label="No">—</i></td><td><i class="y" aria-label="Yes"></i></td><td><i class="n" aria-label="No">—</i></td><td><i class="n" aria-label="No">—</i></td></tr>
+          <tr><th>Ads blocked out of the box</th><td class=me><i class="y" aria-label="Yes"></i><small>YouTube too</small></td><td><i class="n" aria-label="No">—</i></td><td><i class="n" aria-label="No">—</i></td><td><i class="n" aria-label="No">—</i></td><td><i class="y" aria-label="Yes"></i></td><td><i class="n" aria-label="No">—</i></td></tr>
+          <tr><th>Chrome extensions</th><td class=me><i class="y" aria-label="Yes"></i></td><td><i class="y" aria-label="Yes"></i></td><td><i class="y" aria-label="Yes"></i></td><td><i class="n" aria-label="No">—</i></td><td><i class="y" aria-label="Yes"></i><small>some</small></td><td><i class="n" aria-label="No">—</i></td></tr>
+          <tr><th>Open source</th><td class=me><i class="y" aria-label="Yes"></i></td><td><i class="n" aria-label="No">—</i></td><td><i class="n" aria-label="No">—</i></td><td><i class="y" aria-label="Yes"></i></td><td><i class="n" aria-label="No">—</i></td><td><i class="n" aria-label="No">—</i></td></tr>
+          <tr><th>Price</th><td class=me>Free</td><td>Free</td><td>Free · Pro $20/mo</td><td>Free</td><td>Free · Orion+ $5/mo</td><td>Free</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="quiet" style="margin-top: var(--m)">Arc stops getting updates on 22 December 2026 — Sapfire imports it in one step. As of November 2026, from each browser's own site and release notes. Numbers: Sapfire 1.0 and Safari 27 on a MacBook Pro M3 Max, macOS 27, idle Mac, clean profile, 9 November 2026; Speedometer 3 served locally.</p>
+  </section>
+
+
+  <!-- 6. Приватность -->
+  <section id="privacy">
+    <div class="head">
+      <h2>Private by default. Not as an option</h2>
+    </div>
+    <div class="block privacy" data-reveal>
+      <div class="facts">
+        <div><h3>Ads stay out</h3><p>Ads and trackers blocked out of the box — YouTube too. No extension needed.</p></div>
+        <div><h3>No account, no telemetry</h3><p>Sapfire never talks to a server of its own.</p></div>
+        <div><h3>Incognito that means it</h3><p>Goes only through your proxy, writes nothing to disk, locks with Touch ID.</p></div>
+        <div><h3>Your passwords stay yours</h3><p>Encrypted on your Mac, unlocked with Touch ID.</p></div>
+      </div>
+      <!-- Как в Settings: переключатели стоят так и в самом деле -->
+      <div class="settings" aria-label="Sapfire settings, as shipped">
+        <div class="set">Block ads and trackers<i class="sw"></i></div>
+        <div class="set">Block ads on YouTube<i class="sw"></i></div>
+        <div class="set">Strip tracking parameters<i class="sw"></i></div>
+        <div class="set">Fingerprinting protection<i class="sw"></i></div>
+        <div class="set">Incognito only through a proxy<i class="sw"></i></div>
+        <div class="set">Send usage data to Sapfire<small>There's no such switch.</small></div>
+      </div>
+    </div>
+    <p class="quiet" style="margin-top: var(--m)">Privacy policy · This site doesn't track you either.</p>
+  </section>
+
+  <!-- 7. Открытый код -->
+  <section id="oss">
+    <div class="head"><h2>Open source. It can't be shut down</h2></div>
+    <div class="block oss" data-reveal>
+      <p class="lead">Sapfire is GPL-3.0 on GitHub. Read the code, report a bug, send a fix.</p>
+      <div class="row tight">
+        <!-- звёзды подтянутся, когда репозиторий открыт: data-repo="sapfireapp/sapfire" на <main> -->
+        <span class="btn btn-ghost" data-stars hidden>★ <b></b></span>
+        <!-- адрес — когда будет организация sapfireapp -->
+        <a class="btn btn-primary" href="https://github.com/sapfireapp/sapfire">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Вопросы (ответы продублированы в JSON-LD в <head> — менять вместе) -->
+  <section id="faq">
+    <div class="head"><h2>Questions</h2></div>
+    <!-- Ответы короткие — сеткой, без спойлеров. «Does it phone home?» и «What does this site collect?» убраны: это уже сказано в Privacy и в подвале -->
+    <div class="grid3">
+      <div class="block tile" id="from-arc"><h3>Coming from Arc?</h3><p>Import in one step: spaces, pinned tabs, folders, splits, history and passwords. Right on the first screen, or File → Import from Arc…</p></div>
+      <div class="block tile"><h3>Why Safari's engine?</h3><p>WebKit is the engine Safari uses, and it's already on your Mac. Sapfire doesn't ship a second Chromium — that's why it is small, light on memory and kind to your battery.</p></div>
+      <div class="block tile"><h3>Do my extensions work?</h3><p>Most do. Sapfire installs them from the Chrome Web Store and Firefox Add-ons; a few use features Safari's engine doesn't have. Requires macOS 15.4 or later.</p></div>
+      <div class="block tile"><h3>Is it safe to open?</h3><p>Yes — signed with a Developer ID and notarized by Apple, so macOS opens it without warnings. And the code is open: read every line.</p></div>
+      <div class="block tile"><h3>Does it sync between Macs?</h3><p>Not yet.</p></div>
+      <div class="block tile"><h3>Windows? iPhone?</h3><p>Mac only, for now.</p></div>
+    </div>
+  </section>
+
+  <!-- 9. Последний экран -->
+  <section class="final block">
+    <div class="lockup">
+      <div class="gem"><img src="assets/gem.png" alt=""><canvas data-gem aria-hidden="true"></canvas></div>
+      <h2 class="name">Sapfire</h2>
+    </div>
+    <a class="btn btn-primary" href="#download" data-download><i class="dot"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2.5v9M3.5 8 7 11.5 10.5 8"/></svg></i><span data-label>Download for Mac</span></a>
+    <!-- Факты одной строкой — у кнопки загрузки. Версия и размер — атрибуты data-version / data-size на <main>, когда будет релиз -->
+    <p class="meta"><span>Free</span><span>Open source</span><span>No account</span><span>macOS 14 or later</span><span>Apple silicon &amp; Intel</span><span data-version hidden></span></p>
+    <!-- Сборка для Intel — ссылка появляется, когда в выпуске на GitHub есть -Intel.dmg -->
+    <p class="meta" hidden><a data-intel href="#download">Intel Mac? Download for Intel</a></p>
+  </section>
+
+  <footer>
+    <div class="block">
+      <div class="cols">
+        <div><span class="eyebrow">Project</span><a href="https://github.com/sapfireapp/sapfire">Source</a><a href="https://github.com/sapfireapp/sapfire/releases">Release notes</a><a href="https://github.com/sapfireapp/sapfire/issues/new">Report a bug</a></div>
+        <div><span class="eyebrow">Site</span><a href="#privacy">Privacy</a><a href="https://github.com/sapfireapp/sapfire/releases">Changelog</a></div>
+        <div><span class="eyebrow">Built on</span><span>WebKit — the engine in Safari</span><span>GPL-3.0</span></div>
+      </div>
+      <!-- Соцсети: пока только GitHub; X, Mastodon, Bluesky, Reddit, Discord — вернуть из snapshots/index.before-deploy-2026-11-09.html, когда появятся аккаунты. Значки — Simple Icons (CC0) -->
+      <nav class="social" aria-label="Sapfire elsewhere"><a href="https://github.com/sapfireapp/sapfire" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav>
+    </div>
+  </footer>
+
+</main>
+<script src="assets/gem.js?v=14"></script>
+<script src="assets/mock/data.js?v=14"></script>
+<script src="assets/mock.js?v=33"></script>
+<script>
+  // Окно в первом экране: показ механик. Сцены идут по кругу, пока окно на экране; подпись — сразу к своей сцене.
+  // ⌘S / ⇧⌘L и кнопки панелей в окне — по-настоящему, показ при этом останавливается
+  (() => {
+    const frame = document.getElementById('shot-frame');
+    const m = frame && frame.querySelector('.mock');
+    if (!m || !m.mock) return;
+    frame.classList.add('live');
+    const chips = [...document.querySelectorAll('.chip[data-scene]')], cap = document.querySelector('.scene-cap');
+    const order = chips.map(c => c.dataset.scene);
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let gen = 0, i = 0, seen = false;
+    const mark = name => { chips.forEach(c => c.classList.toggle('on', c.dataset.scene === name));
+      if (cap) cap.textContent = name ? chips.find(c => c.dataset.scene === name).dataset.cap : ''; };
+    const loop = async (g, once) => {
+      while (g === gen) {
+        mark(order[i]);
+        const done = await m.mock.play(order[i]);
+        if (!done || g !== gen) return;
+        if (once || still) { mark(null); return; }
+        i = (i + 1) % order.length;
+        await new Promise(r => setTimeout(r, 600));
+      }
+    };
+    const start = (from, once) => { const g = ++gen; if (from != null) i = from; loop(g, once); };
+    const halt = () => { gen++; if (m.mock.playing) m.mock.stop(); mark(null); };   // окно сбрасывается, только если шла сцена — иначе пропали бы свои правки
+    chips.forEach((c, k) => c.addEventListener('click', () => start(k, still)));
+    new IntersectionObserver(([e]) => { seen = e.isIntersecting; if (seen && !still) start(); else if (!seen) halt(); }, { threshold: .35 }).observe(frame);
+    m.addEventListener('click', e => { if (e.target.closest('[data-act]')) halt(); }, true);   // сам нажал кнопку панели — показ не мешает
+    // сам взялся за папки, вкладки, меню — показ останавливается (шла сцена — окно сначала возвращается в исходное)
+    m.addEventListener('mockuser', halt);
+    addEventListener('keydown', (e) => {
+      if (!seen || !e.metaKey || e.altKey || e.ctrlKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 's' && !e.shiftKey) { e.preventDefault(); halt(); m.mock.toggle('no-side'); }
+      else if (k === 'l' && e.shiftKey) { e.preventDefault(); halt(); m.mock.toggle('no-bar'); }
+    });
+  })();
+
+  // Стекло за курсором: только устройства с мышью; раз за кадр — координаты курсора в каждом блоке на экране и близость
+  (() => {
+    if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const els = [...document.querySelectorAll('.block, .steps li, .chapter')];
+    els.forEach((el) => el.classList.add('glassy'));
+    let mx = -1e4, my = -1e4, raf = 0;
+    const T = (window.SapfireTune ||= {}); T.curRange ??= 300;  // px: с какого расстояния блик начинает проявляться
+    const tick = () => {
+      raf = 0;
+      const vh = innerHeight, R = T.curRange;
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < -R || r.top > vh + R || !r.width) continue;
+        const dx = Math.max(r.left - mx, 0, mx - r.right), dy = Math.max(r.top - my, 0, my - r.bottom);
+        const k = Math.max(0, 1 - Math.hypot(dx, dy) / R);
+        el.style.setProperty('--gk', k.toFixed(3)); el.classList.toggle('near', k > 0);   // слои блика (с маской кромки) — только у блоков рядом с курсором: у всех сразу они рисовались при въезде блока в экран, прокрутка замирала
+        if (k > 0) { el.style.setProperty('--gx', (mx - r.left).toFixed(0) + 'px'); el.style.setProperty('--gy', (my - r.top).toFixed(0) + 'px'); }
+      }
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    addEventListener('pointermove', (e) => { mx = e.clientX; my = e.clientY; kick(); }, { passive: true });
+    // От прокрутки не пересчитываем: блок, подъехавший к курсору, перерисовывался целиком (с маской кромки) каждый кадр —
+    // прокрутка замирала на ~75 мс. При прокрутке блик едет вместе с блоком, к курсору догоняет при движении мыши
+    document.addEventListener('pointerleave', () => { mx = my = -1e4; kick(); });
+  })();
+
+  // Задник: оба пятна при прокрутке вращаются вокруг своего центра и гуляют по экрану (p — сколько экранов прокручено,
+  // движение — синусы с разными периодами, чтобы на длинной странице не повторялось). Прокрутка сглажена (инерция),
+  // свет за 1.2 экрана переходит из резкого пятна в мягкую копию; курсор тянет свет на 4 % экрана.
+  // Только transform и opacity. Reduced motion не выключает: движение идёт за прокруткой, само не анимируется
+  (() => {
+    const glow = document.querySelector('.bg .glow'), soft = document.querySelector('.bg .glow-soft'), dark = document.querySelector('.bg .dark');
+    if (!glow || !dark) return;
+    const T = (window.SapfireTune ||= {});
+    Object.entries({ egSide: -1, egSize: 12, egAlong: 9, egOut: 3, egIntro: 2.9, egFeather: 0, lightPin: 0, lightEdge: 0, pinDrift: 0, lightOpacity: 0.5, softOpacity: 0, darkOpacity: 1, smooth: 1, lightSwayX: 0.6, lightRise: 1.5, lightTurn: -8.5, fadeScreens: 0.2, darkSwayX: 0, darkSwayY: 0, darkTurn: -40, cursorPull: 0, scrollFollow: 0 })   // задник неподвижен: ни прокрутка, ни курсор (было cursorPull .04). Движется только блик по стыку цветов (egIntro) — при загрузке и возврате наверх; при прокрутке просвет гаснет, мягкое пятно не появляется (было softOpacity 1)
+      .forEach(([k, v]) => { T[k] ??= v; });
+    let s = scrollY, tx = 0, ty = 0, x = 0, y = 0, raf = 0, mx = innerWidth / 2, my = innerHeight / 2, tPrev = [0, 0];
+    const bgEl = document.querySelector('.bg'), light = glow.querySelector('.light'), gem = document.querySelector('.hero .gem');
+    const eg = document.querySelector('.bg .edge-glow');
+    let egK = 1;
+    // Геометрия света в координатах экрана (то же, что раньше считал CSS для повёрнутого прямоугольника):
+    // u — ширина условной картинки 3:2 (cover), центр прямоугольника, его длина H и полуширина A, поворот
+    const len = (v, vh) => { v = String(v).trim(); return v.endsWith('vh') ? parseFloat(v) * vh / 100 : v.endsWith('vw') ? parseFloat(v) * innerWidth / 100 : parseFloat(v) || 0; };
+    const base = (cs) => {
+      const vw = innerWidth, vh = innerHeight, u = Math.max(vw, 1.497 * vh);
+      const ox = (vw - u) / 2, oy = (vh - u * .668) / 2 + len(cs.getPropertyValue('--shift'), vh);
+      const num = (n) => parseFloat(cs.getPropertyValue(n)) || 0;
+      return { u, C0: [ox + num('--light-x') * u, oy + num('--light-y') * u], H: num('--light-len') * u, A: 3 * u, ang: num('--light-angle') };
+    };
+    const frame = (lr, cs, g) => {
+      const th = (g.ang + lr) * Math.PI / 180;
+      return { th, tan: [Math.cos(th), Math.sin(th)], nrm: [Math.sin(th), -Math.cos(th)] };    // вдоль грани и наружу (от света)
+    };
+    // Грань света через центр камня: свет сдвигается поперёк своей грани так, чтобы эллипс доли lightEdge его размеров
+    // проходил через центр камня в первом экране; вдоль грани и по повороту свет движется как обычно
+    const pin = (lx, ly, lr, cs, g) => {
+      if (!T.lightPin || !gem) return [lx, ly];
+      const { tan, nrm } = frame(lr, cs, g), gb = gem.getBoundingClientRect();
+      const G = [gb.left + gb.width / 2, gb.top + gb.height / 2];
+      const a = g.A * T.lightEdge, b = g.H / 2 * T.lightEdge;
+      const C = [g.C0[0] + lx, g.C0[1] + ly], D = [G[0] - C[0], G[1] - C[1]];
+      const u = D[0] * tan[0] + D[1] * tan[1], v = D[0] * nrm[0] + D[1] * nrm[1];
+      // при прокрутке грань отстаёт от камня (сглаженная прокрутка s позади настоящей) и возвращается, когда страница встала
+      const lag = Math.max(-.1 * innerHeight, Math.min(.1 * innerHeight, (scrollY - s) * T.pinDrift));
+      const shift = v - b * Math.sqrt(Math.max(0, 1 - (u / a) ** 2)) - lag;
+      return [lx + shift * nrm[0], ly + shift * nrm[1]];
+    };
+    // Градиенты в координатах слоя размером с экран. Для линейного: угол CSS по направлению d и смещение точки P вдоль d
+    // (длина линии градиента по правилу CSS: |W·dx| + |H·dy|, начало — центр минус половина)
+    const cssAng = (d) => Math.atan2(d[0], -d[1]) * 180 / Math.PI;
+    const posAlong = (P, d) => { const W = innerWidth, H = innerHeight, L = Math.abs(W * d[0]) + Math.abs(H * d[1]);
+                                 return (P[0] - W / 2) * d[0] + (P[1] - H / 2) * d[1] + L / 2; };
+    // Маска грани: линия через E по направлению tan, видимая сторона — inn; x вдоль грани от E; мягкость F0 при x0 → F1 при x1.
+    // Если мягкость линейна по x, линии равной прозрачности — веер из точки грани, где она 0: конический градиент. Иначе — линейный
+    const edgeMask = (E, tan, inn, x0, x1, F0, F1) => {
+      if (x1 - x0 < 1 || Math.abs(F1 - F0) < .5) {
+        const F = (F0 + F1) / 2, t = posAlong(E, inn);
+        return `linear-gradient(${cssAng(inn).toFixed(3)}deg, transparent ${t.toFixed(1)}px, #000 ${(t + F).toFixed(1)}px)`;
+      }
+      const k = (F1 - F0) / (x1 - x0), xa = x0 - F0 / k;                       // вершина веера
+      const t1 = Math.atan(Math.abs(k)) * 180 / Math.PI, N = 10, st = [[0, 0], [90, 0]];
+      for (let i = 0; i <= N; i++) { const t = t1 * i / N; st.push([90 + t, Math.min(1, Math.tan(t * Math.PI / 180) / Math.abs(k))]); }
+      st.push([270, 1], [270, 0], [360, 0]);                                    // локально: tan — вправо (90°), inn — вниз (180°)
+      let a = st;
+      if (k < 0) a = a.map(([g, v]) => [(360 - g) % 360, v]);                    // мягко слева — зеркально
+      const cw = Math.abs(inn[0] - -tan[1]) + Math.abs(inn[1] - tan[0]) < 1e-3;  // inn — по часовой от tan (как «вниз» от «вправо»)
+      if (!cw) a = a.map(([g, v]) => [((180 - g) % 360 + 360) % 360, v]);
+      a.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+      const V = [E[0] + tan[0] * xa, E[1] + tan[1] * xa], rot = cssAng(tan) - 90;
+      return `conic-gradient(from ${rot.toFixed(3)}deg at ${V[0].toFixed(1)}px ${V[1].toFixed(1)}px, ${a.map(([g, v]) => `rgb(0 0 0 / ${v.toFixed(3)}) ${g.toFixed(2)}deg`).join(', ')})`;
+    };
+    // Переход мягкости задан долями ширины экрана (--edge-from-s … --edge-to-s): x вдоль грани от E до точки грани с этим x экрана
+    const along = (E, tan, fx) => (fx * innerWidth - E[0]) / (Math.abs(tan[0]) > 1e-4 ? tan[0] : 1e-4);
+    const feathers = (cs) => [parseFloat(cs.getPropertyValue('--edge-l')) || 0, parseFloat(cs.getPropertyValue('--edge-r')) || 0,
+                              parseFloat(cs.getPropertyValue('--edge-from-s')) || 0, parseFloat(cs.getPropertyValue('--edge-to-s')) || 1];
+    let lastLight = '', lastEg = '';
+    // Свет и подсветка у грани за кадр. Пока резкий свет погашен (ниже первого экрана), ничего не пересчитываем
+    const drawLight = (lr, lx, ly, fade, cs, g) => {
+      if (!light) return;
+      if (fade <= .001) { if (eg) eg.style.opacity = 0; return; }
+      const { th, tan, nrm } = frame(lr, cs, g), inn = [-nrm[0], -nrm[1]];
+      const C = [g.C0[0] + lx, g.C0[1] + ly], E = [C[0] + nrm[0] * g.H / 2, C[1] + nrm[1] * g.H / 2];   // середина грани
+      const [Fl, Fr, fa, fb] = feathers(cs), lo = Math.min(fa, fb), hi = Math.max(fa, fb);
+      const FL = fa <= fb ? Fl : Fr, FR = fa <= fb ? Fr : Fl;
+      const t0 = posAlong(E, inn), mid = (parseFloat(cs.getPropertyValue('--light-mid')) || 50) / 100, col = cs.getPropertyValue('--light-color').trim();
+      const bgImg = `linear-gradient(${cssAng(inn).toFixed(3)}deg, ${col} ${t0.toFixed(1)}px, ${(t0 + mid * g.H).toFixed(1)}px, rgb(from ${col} r g b / 0) ${(t0 + g.H).toFixed(1)}px)`;
+      const m = edgeMask(E, tan, inn, along(E, tan, lo), along(E, tan, hi), FL, FR);
+      const key = bgImg + m;
+      if (key !== lastLight) { light.style.backgroundImage = bgImg; light.style.webkitMaskImage = light.style.maskImage = m; lastLight = key; }
+      // Подсветка у грани: круг вокруг точки рядом с камнем (вдоль грани — egAlong, от грани — egOut, в ширинах камня),
+      // обрезан той же гранью с той же мягкостью (+ egFeather); egSide: −1 — под гранью, 1 — над
+      if (!eg || !gem) return;
+      const gb = gem.getBoundingClientRect(), G = [gb.left + gb.width / 2, gb.top + gb.height / 2], Wg = gb.width;
+      const dist = (G[0] - E[0]) * nrm[0] + (G[1] - E[1]) * nrm[1];
+      const P = [G[0] - dist * nrm[0], G[1] - dist * nrm[1]];                              // точка грани напротив камня
+      const side = T.egSide >= 0 ? 1 : -1, R = Wg * T.egSize;
+      const shA = Wg * T.egAlong * egK, shO = side * Wg * T.egOut * egK;              // egK — доля выезда (вступление)
+      const Pc = [P[0] + tan[0] * shA + nrm[0] * shO, P[1] + tan[1] * shA + nrm[1] * shO];
+      const vis = side < 0 ? inn : nrm;
+      const egBg = `radial-gradient(circle ${R.toFixed(1)}px at ${Pc[0].toFixed(1)}px ${Pc[1].toFixed(1)}px, var(--eg-stops))`;
+      const egM = edgeMask(P, tan, vis, along(P, tan, lo), along(P, tan, hi), FL + T.egFeather, FR + T.egFeather);
+      const k2 = egBg + egM;
+      if (k2 !== lastEg) { eg.style.backgroundImage = egBg; eg.style.webkitMaskImage = eg.style.maskImage = egM; lastEg = k2; }
+      eg.style.opacity = fade.toFixed(3);
+    };
+    const tick = () => {
+      raf = 0;
+      const vw = innerWidth, vh = innerHeight;
+      tx = (mx / vw - .5) * vw * T.cursorPull; ty = (my / vh - .5) * vh * T.cursorPull;
+      s += (scrollY - s) * T.smooth; x += (tx - x) * .08; y += (ty - y) * .08;
+      // scrollFollow 0 — пятна не двигаются за прокруткой (p = 0); просвет первого экрана гаснет по настоящей прокрутке (pf)
+      const pf = s / vh, p = T.scrollFollow ? pf : 0;
+      // свет: уходит вверх-влево по дуге и поворачивается
+      const lr = p * T.lightTurn, cs = getComputedStyle(bgEl), g = base(cs);
+      const [lx, ly] = pin(-vw * T.lightSwayX * Math.sin(p * .55) + x, -vh * T.lightRise * (1 - Math.cos(p * .5)) + y, lr, cs, g);
+      tPrev = [lx, ly];
+      soft.style.transform = `translate3d(${lx.toFixed(1)}px, ${ly.toFixed(1)}px, 0) rotate(${lr.toFixed(2)}deg)`;   // мягкая копия — по-прежнему сдвигом
+      // резкое пятно → мягкое за первые 1.2 экрана (плавный старт и финиш)
+      const k0 = Math.min(pf / T.fadeScreens, 1), k = k0 * k0 * (3 - 2 * k0);
+      glow.style.opacity = ((1 - k) * T.lightOpacity).toFixed(3);
+      soft.style.opacity = (k * T.softOpacity).toFixed(3);
+      dark.style.opacity = T.darkOpacity;
+      drawLight(lr, lx, ly, (1 - k) * T.lightOpacity, cs, g);     // свет и подсветка у грани; гаснут вместе
+      // тёмное пятно: плывёт вправо и вниз, вращается в обратную сторону
+      const dx = vw * T.darkSwayX * Math.sin(p * .4), dy = vh * T.darkSwayY * Math.sin(p * .3), dr = -p * T.darkTurn;
+      dark.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) rotate(${dr.toFixed(2)}deg)`;
+      if (T.lightPin && !(Math.abs(scrollY - s) > .5) && Math.abs(tPrev[1] - (tPrev.last ?? NaN)) > .5) raf = requestAnimationFrame(tick);
+      tPrev.last = tPrev[1];
+      if (Math.abs(scrollY - s) > .5 || Math.abs(tx - x) > .2 || Math.abs(ty - y) > .2) raf = requestAnimationFrame(tick);
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    addEventListener('scroll', () => { if (T.scrollFollow || s / innerHeight < T.fadeScreens + .05 || scrollY / innerHeight < T.fadeScreens + .05) kick(); }, { passive: true });   // без следования — пересчёт только пока гаснет просвет у верха
+    addEventListener('resize', kick);
+    // Стекло под шапкой — только когда страница прокручена
+    const mark = () => document.documentElement.classList.toggle('scrolled', scrollY > 4);
+    addEventListener('scroll', mark, { passive: true }); mark();
+    addEventListener('pointermove', (e) => { mx = e.clientX; my = e.clientY; kick(); }, { passive: true });
+    kick();
+    // Вступление: подсветка у грани выезжает из 0/0 к своим значениям (сдвиг вдоль грани и отступ от грани) за egIntro с,
+    // плавно тормозя. Играет при загрузке и снова — когда страницу прокрутили ниже экрана и вернули наверх.
+    // Анимируется только доля egK, значения из панели не трогаются
+    let introRaf = 0, away = false;
+    const intro = () => {
+      const D = T.egIntro * 1000; cancelAnimationFrame(introRaf);
+      if (!(D > 0)) { egK = 1; kick(); return; }
+      const t0 = performance.now(); egK = 0;
+      const step = (now) => {
+        const u = Math.min((now - t0) / D, 1); egK = u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; kick();   // плавный старт и плавное торможение
+        if (u < 1) introRaf = requestAnimationFrame(step);
+      };
+      introRaf = requestAnimationFrame(step);
+    };
+    addEventListener('DOMContentLoaded', intro);
+    addEventListener('scroll', () => {
+      if (scrollY > innerHeight) away = true;                  // ушли ниже первого экрана — подсветка погасла
+      else if (away && scrollY < innerHeight * .15) { away = false; intro(); }
+    }, { passive: true });
+  })();
+
+(() => {
+  const main = document.querySelector('main');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Версия и размер под кнопкой — из data-version / data-size на <main>
+  const v = main.dataset.version, size = main.dataset.size;
+  if (v) document.querySelectorAll('[data-version]').forEach(el => { el.textContent = 'v' + v + (size ? ' · ' + size : ''); el.hidden = false; });
+
+  // Не Mac (телефон, планшет, Windows) — кнопка шлёт ссылку себе на Mac
+  const isMac = /Mac/.test(navigator.platform) && navigator.maxTouchPoints < 2 && !/Android|iPhone|iPad|Windows/.test(navigator.userAgent);
+  if (!isMac) {
+    const url = location.origin + location.pathname;
+    document.querySelectorAll('[data-download]').forEach(a => {
+      (a.querySelector('[data-label]') || a).textContent = 'Send to my Mac';
+      a.href = 'mailto:?subject=' + encodeURIComponent('Sapfire for Mac') + '&body=' + encodeURIComponent('Download for Mac: ' + url);
+    });
+    const copy = document.querySelector('[data-copy]');
+    if (copy && navigator.clipboard) {
+      copy.hidden = false;
+      copy.onclick = () => navigator.clipboard.writeText(url).then(() => { copy.textContent = 'Copied'; setTimeout(() => copy.textContent = 'Copy link', 1500); });
+    }
+  }
+
+  // Снимки разделов декодируем заранее, пока страница стоит: иначе AVIF декодировался в момент въезда в экран, и прокрутка
+  // замирала на ~70 мс (рывок). Ленивую загрузку не используем — по той же причине
+  const predecode = () => document.querySelectorAll('img.pic').forEach(im => im.decode().catch(() => {}));
+  if (document.readyState === 'complete') setTimeout(predecode, 300); else addEventListener('load', () => setTimeout(predecode, 300));
+
+  // Появление блоков при прокрутке
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .15 });
+  document.querySelectorAll('[data-reveal]').forEach(el => io.observe(el));
+
+  // После клика по DMG — шаги установки (на телефоне ссылка почтовая, шаги не нужны)
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-download], [data-intel]');
+    if (a && /\.dmg(\?|$)/.test(a.href)) document.querySelectorAll('[data-steps]').forEach(el => el.hidden = false);
+  });
+
+  // GitHub — когда на <main> есть data-repo: звёзды, а без data-version ещё версия, размер и ссылка на DMG из последнего релиза
+  const repo = main.dataset.repo, stars = document.querySelector('[data-stars]');
+  const gh = (path) => fetch('https://api.github.com/repos/' + repo + path).then(r => r.json());
+  if (repo && stars) gh('').then(d => {
+    if (!d.stargazers_count) return;
+    stars.querySelector('b').textContent = new Intl.NumberFormat('en', { notation: 'compact' }).format(d.stargazers_count);
+    stars.hidden = false;
+  }).catch(() => {});
+  if (repo && !v) gh('/releases/latest').then(d => {
+    // Две сборки (tools/release.command в Sapfire): Sapfire-<версия>-AppleSilicon.dmg — на кнопки, -Intel.dmg — ссылкой под нижней кнопкой
+    const dmgs = (d.assets || []).filter(a => /\.dmg$/.test(a.name));
+    const dmg = dmgs.find(a => /AppleSilicon/i.test(a.name)) || dmgs[0], intel = dmgs.find(a => /Intel/i.test(a.name));
+    if (!dmg) return;
+    const il = document.querySelector('[data-intel]'); if (intel && il) { il.href = intel.browser_download_url; il.closest('[hidden]') && (il.closest('[hidden]').hidden = false); }
+    const text = 'v' + String(d.tag_name || '').replace(/^v/, '') + ' · ' + Math.round(dmg.size / 1048576) + ' MB';
+    document.querySelectorAll('[data-version]').forEach(el => { el.textContent = text; el.hidden = false; });
+    if (isMac) document.querySelectorAll('[data-download]').forEach(a => a.href = dmg.browser_download_url);
+  }).catch(() => {});
+})();
+</script>
+</body>
+</html>
